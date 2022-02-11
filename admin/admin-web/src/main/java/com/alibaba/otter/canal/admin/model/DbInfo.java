@@ -40,8 +40,6 @@ public class DbInfo extends Model {
     private String  dbName;
     private String  dbUserName;
     private String  dbPassword;
-    private Boolean backUpFlag;
-    private Long    canalInstanceConfigId;
     private Integer sequence;
     @WhenCreated
     private Date    creationDate;
@@ -94,22 +92,6 @@ public class DbInfo extends Model {
 
     public void setDbPassword(String dbPassword) {
         this.dbPassword = dbPassword;
-    }
-
-    public Boolean getBackUpFlag() {
-        return backUpFlag;
-    }
-
-    public void setBackUpFlag(Boolean backUpFlag) {
-        this.backUpFlag = backUpFlag;
-    }
-
-    public Long getCanalInstanceConfigId() {
-        return canalInstanceConfigId;
-    }
-
-    public void setCanalInstanceConfigId(Long canalInstanceConfigId) {
-        this.canalInstanceConfigId = canalInstanceConfigId;
     }
 
     public Integer getSequence() {

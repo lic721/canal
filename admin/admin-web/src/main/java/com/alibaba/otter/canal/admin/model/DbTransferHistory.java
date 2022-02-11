@@ -41,6 +41,8 @@ public class DbTransferHistory extends Model {
     private Long   targetDbInfoId;
     private String dbTransferConfigJson;
     private String remark;
+    private Long   canalInstanceConfigId;
+    private String mqTopic;
     @WhenCreated
     private Date   creationDate;
     @WhenModified
@@ -116,5 +118,21 @@ public class DbTransferHistory extends Model {
 
     public void setRemark(String remark) {
         this.remark = remark;
+    }
+
+    public Long getCanalInstanceConfigId() {
+        return canalInstanceConfigId;
+    }
+
+    public void setCanalInstanceConfigId(Long canalInstanceConfigId) {
+        this.canalInstanceConfigId = canalInstanceConfigId;
+    }
+
+    public String getMqTopic() {
+        return mqTopic;
+    }
+
+    public void setMqTopic(String mqTopic) {
+        this.mqTopic = mqTopic;
     }
 }

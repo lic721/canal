@@ -128,6 +128,12 @@ export const constantRoutes = [
         component: () => import('@/views/canalServer/CanalInstanceLogDetail'),
         meta: { title: 'Instance 日志' },
         hidden: true
+      },
+      {
+        path: 'dbInfo',
+        name: '数据库管理',
+        component: () => import('@/views/canalServer/DbInfo'),
+        meta: { title: '数据库管理', icon: 'form' }
       }
     ]
   },
