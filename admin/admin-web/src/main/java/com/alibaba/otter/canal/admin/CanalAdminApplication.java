@@ -3,6 +3,7 @@ package com.alibaba.otter.canal.admin;
 import org.springframework.boot.Banner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * 启动入口
@@ -10,6 +11,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * @author rewerma @ 2018-10-20
  * @version 1.0.0
  */
+@EnableScheduling
 @SpringBootApplication
 public class CanalAdminApplication {
 

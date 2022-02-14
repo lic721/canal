@@ -74,13 +74,6 @@ public class DbInfoServiceImpl implements DbInfoService {
             }
 
             // 同时删除相关表
-            List<Object> dbSourceSelectRuleIds = DbSourceSelectRule.find.query().where().eq("dbInfoId", id).findIds();
-            if (dbSourceSelectRuleIds != null) {
-                dbSourceSelectRuleIds.forEach(dbSourceSelectRuleId -> {
-                    DbSourceSelectRule.find.deleteById(Long.valueOf(dbSourceSelectRuleId.toString()));
-                });
-            }
-
             List<Object> dbTransferConfigIds = DbTransferConfig.find.query().where().eq("dbInfoId", id).findIds();
             if (dbTransferConfigIds != null) {
                 dbTransferConfigIds.forEach(dbTransferConfigId -> {
