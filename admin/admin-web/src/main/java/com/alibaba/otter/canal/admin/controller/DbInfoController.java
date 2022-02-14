@@ -14,18 +14,18 @@ import org.springframework.web.bind.annotation.*;
  * @version 1.0.0
  */
 @RestController
-@RequestMapping("/api/{env}/db")
+@RequestMapping("/api/{env}")
 public class DbInfoController {
 
     @Autowired
     DbInfoService dbInfoService;
 
     /**
-     * 获取所有节点信息列表
+     * 获取所有数据库信息列表
      *
      * @param dbInfo 筛选条件
      * @param env 环境变量
-     * @return 节点信息列表
+     * @return 数据库信息列表
      */
     @GetMapping(value = "/dbInfos")
     public BaseModel<Pager<DbInfo>> dbInfos(DbInfo dbInfo, Pager<DbInfo> pager,
@@ -34,9 +34,9 @@ public class DbInfoController {
     }
 
     /**
-     * 保存节点信息
+     * 保存数据库信息
      *
-     * @param dbInfo 节点信息
+     * @param dbInfo 数据库信息
      * @param env 环境变量
      * @return 是否成功
      */
@@ -47,9 +47,9 @@ public class DbInfoController {
     }
 
     /**
-     * 获取节点信息详情
+     * 获取数据库信息详情
      *
-     * @param id 节点信息id
+     * @param id 数据库信息id
      * @param env 环境变量
      * @return 检点信息
      */
@@ -59,9 +59,9 @@ public class DbInfoController {
     }
 
     /**
-     * 修改节点信息
+     * 修改数据库信息
      *
-     * @param dbInfo 节点信息
+     * @param dbInfo 数据库信息
      * @param env 环境变量
      * @return 是否成功
      */
@@ -72,9 +72,9 @@ public class DbInfoController {
     }
 
     /**
-     * 删除节点信息
+     * 删除数据库信息
      *
-     * @param id 节点信息id
+     * @param id 数据库信息id
      * @param env 环境变量
      * @return 是否成功
      */
@@ -82,54 +82,5 @@ public class DbInfoController {
     public BaseModel<String> delete(@PathVariable Long id, @PathVariable String env) {
         dbInfoService.delete(id);
         return BaseModel.getInstance("success");
-    }
-
-    /**
-     * 获取远程节点运行状态
-     *
-     * @param ip 节点ip
-     * @param port 节点端口
-     * @param env 环境变量
-     * @return 状态信息
-     */
-    @GetMapping(value = "/dbInfo/status")
-    public BaseModel<Integer> status(@RequestParam String ip, @RequestParam Integer port, @PathVariable String env) {
-        return BaseModel.getInstance(dbInfoService.remoteNodeStatus(ip, port));
-    }
-
-    /**
-     * 启动远程节点
-     *
-     * @param id 节点id
-     * @param env 环境变量
-     * @return 是否成功
-     */
-    @PutMapping(value = "/dbInfo/start/{id}")
-    public BaseModel<Boolean> start(@PathVariable Long id, @PathVariable String env) {
-        return BaseModel.getInstance(dbInfoService.remoteOperation(id, "start"));
-    }
-
-    /**
-     * 获取远程节点日志
-     *
-     * @param id 节点id
-     * @param env 环境变量
-     * @return 节点日志
-     */
-    @GetMapping(value = "/dbInfo/log/{id}")
-    public BaseModel<String> log(@PathVariable Long id, @PathVariable String env) {
-        return BaseModel.getInstance(dbInfoService.remoteCanalLog(id));
-    }
-
-    /**
-     * 关闭远程节点
-     *
-     * @param id 节点id
-     * @param env 环境变量
-     * @return 是否成功
-     */
-    @PutMapping(value = "/dbInfo/stop/{id}")
-    public BaseModel<Boolean> stop(@PathVariable Long id, @PathVariable String env) {
-        return BaseModel.getInstance(dbInfoService.remoteOperation(id, "stop"));
     }
 }

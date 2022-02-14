@@ -7,6 +7,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import com.alibaba.otter.canal.admin.connector.MySqlConnectors;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.stereotype.Service;
 
@@ -109,7 +110,7 @@ public class DbInfoServiceImpl implements DbInfoService {
     @Override
     public List<DbInfo> findAll(DbInfo dbInfo) {
         Query<DbInfo> query = getBaseQuery(dbInfo);
-        query.order().asc("id");
+        query.order().asc("sequence");
         return query.findList();
     }
 
@@ -123,7 +124,7 @@ public class DbInfoServiceImpl implements DbInfoService {
         pager.setCount((long) count);
 
         List<DbInfo> dbInfos = query.order()
-            .asc("id")
+            .asc("sequence")
             .setFirstRow(pager.getOffset().intValue())
             .setMaxRows(pager.getSize())
             .findList();
@@ -135,10 +136,11 @@ public class DbInfoServiceImpl implements DbInfoService {
 
         List<Future<Boolean>> futures = new ArrayList<>(dbInfos.size());
         // get all nodes status
-        for (DbInfo ns : dbInfos) {
+        for (DbInfo di : dbInfos) {
             futures.add(Threads.executorService.submit(() -> {
-                boolean status = SimpleAdminConnectors.execute(ns.getIp(), ns.getAdminPort(), AdminConnector::check);
-                ns.setStatus(status ? "1" : "0");
+                boolean status = MySqlConnectors.execute(di);
+                // 连接状态 0:连接失败 1:连接成功
+                di.setStatus(status ? 1 : 0);
                 return !status;
             }));
         }
@@ -155,40 +157,4 @@ public class DbInfoServiceImpl implements DbInfoService {
         return pager;
     }
 
-    @Override
-    public int remoteNodeStatus(String ip, Integer port) {
-        boolean result = SimpleAdminConnectors.execute(ip, port, AdminConnector::check);
-        return result ? 1 : 0;
-    }
-
-    @Override
-    public String remoteCanalLog(Long id) {
-        DbInfo dbInfo = DbInfo.find.byId(id);
-        if (dbInfo == null) {
-            return "";
-        }
-        return SimpleAdminConnectors
-            .execute(dbInfo.getIp(), dbInfo.getAdminPort(), adminConnector -> adminConnector.canalLog(100));
-    }
-
-    @Override
-    public boolean remoteOperation(Long id, String option) {
-        DbInfo dbInfo = DbInfo.find.byId(id);
-        if (dbInfo == null) {
-            return false;
-        }
-        Boolean result = null;
-        if ("start".equals(option)) {
-            result = SimpleAdminConnectors.execute(dbInfo.getIp(), dbInfo.getAdminPort(), AdminConnector::start);
-        } else if ("stop".equals(option)) {
-            result = SimpleAdminConnectors.execute(dbInfo.getIp(), dbInfo.getAdminPort(), AdminConnector::stop);
-        } else {
-            return false;
-        }
-
-        if (result == null) {
-            result = false;
-        }
-        return result;
-    }
 }

@@ -18,10 +18,4 @@ public interface DbInfoService {
     List<DbInfo> findAll(DbInfo dbInfo);
 
     Pager<DbInfo> findList(DbInfo dbInfo, Pager<DbInfo> pager);
-
-    int remoteNodeStatus(String ip, Integer port);
-
-    String remoteCanalLog(Long id);
-
-    boolean remoteOperation(Long id, String option);
 }

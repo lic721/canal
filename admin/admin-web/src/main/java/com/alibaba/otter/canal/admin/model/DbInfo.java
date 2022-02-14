@@ -41,6 +41,7 @@ public class DbInfo extends Model {
     private String  dbUserName;
     private String  dbPassword;
     private Integer sequence;
+    private Integer status;
     @WhenCreated
     private Date    creationDate;
     @WhenModified
@@ -100,6 +101,14 @@ public class DbInfo extends Model {
 
     public void setSequence(Integer sequence) {
         this.sequence = sequence;
+    }
+
+    public Integer getStatus() {
+        return status;
+    }
+
+    public void setStatus(Integer status) {
+        this.status = status;
     }
 
     public Date getCreationDate() {

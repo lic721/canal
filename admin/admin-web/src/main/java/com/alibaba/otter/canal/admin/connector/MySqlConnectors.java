@@ -1,12 +1,18 @@
 package com.alibaba.otter.canal.admin.connector;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
 import java.util.function.Function;
 
+import com.alibaba.otter.canal.admin.model.DbInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
 
 import com.alibaba.otter.canal.admin.config.SpringContext;
+
+import static java.util.jar.Pack200.Packer.PASS;
 
 /**
  * @author zhihua.li
@@ -15,26 +21,24 @@ public class MySqlConnectors {
 
     private static final Logger logger = LoggerFactory.getLogger(MySqlConnectors.class);
 
-    public static <R> R execute(String ip, int port, Function<AdminConnector, R> function) {
-        Environment env = (Environment) SpringContext.getBean(Environment.class);
-        String defaultUser = env.getProperty("canal.adminUser", "admin");
-        String defaultPasswd = env.getProperty("canal.adminPasswd", "admin");
-
-        return execute(ip, port, defaultUser, defaultPasswd, function);
-    }
-
-    public static <R> R execute(String ip, int port, String user, String passwd, Function<AdminConnector, R> function) {
-        SimpleAdminConnector connector = new SimpleAdminConnector(ip, port, user, passwd);
+    public static boolean execute(DbInfo di) {
         try {
-            connector.connect();
-            return function.apply(connector);
+            Class.forName("com.mysql.jdbc.Driver");
+            StringBuilder url = new StringBuilder();
+            // 格式:"jdbc:mysql://10.181.24.56:3306/saasdemo?useSSL=false&connectTimeout=3000"
+            url.append("jdbc:mysql://")
+                .append(di.getDbIp())
+                .append(":")
+                .append(di.getDbPort())
+                .append("/")
+                .append(di.getDbName())
+                .append("?useSSL=false&connectTimeout=3000");
+            DriverManager.getConnection(url.toString(), di.getDbUserName(), di.getDbPassword());
         } catch (Exception e) {
-            logger.error("connect to ip:{},port:{},user:{},password:{}, failed", ip, port, user, passwd);
-            logger.error(e.getMessage());
-        } finally {
-            connector.disconnect();
+            logger.error("connect database, failed", e);
+            return false;
         }
 
-        return null;
+        return true;
     }
 }
