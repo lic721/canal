@@ -4,6 +4,7 @@ import java.io.*;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
@@ -13,20 +14,20 @@ public class MySqlConnectorSample {
 
     public static final byte NULL_TERMINATED_STRING_DELIMITER = 0x00;
     public static final byte DEFAULT_PROTOCOL_VERSION         = 0x0a;
-    public static final int  MAX_PACKET_LENGTH                = (1 << 24);  // 即2的24次方
+    public static final int  MAX_PACKET_LENGTH                = (1 << 24);     // 即2的24次方
 
-    static String            dbIp                             = "127.0.0.1";
+    static String            dbIp                             = "10.181.24.56";
     static int               dbPort                           = 3306;
-    static String            dbName                           = "saasdemo";
+    static String            dbName                           = null;          // "saasdemo";
     static String            user                             = "canal";
     static String            password                         = "123456";
 
     public static void main(String[] args) throws IOException {
 
-        byte a = (byte)0xFF;
+        byte a = (byte) 0xFF;
         System.out.println(a);// -1,表面上是byte,实际上是int,32位bit全是1
-        System.out.println((byte)(a >>> 8));//-1,证明了表面上是byte,实际上是int
-        System.out.println(a & 0xFF);//255,保证了最后8位bit是1,其余是0,表面上是byte,实际上是int
+        System.out.println((byte) (a >>> 8));// -1,证明了表面上是byte,实际上是int
+        System.out.println(a & 0xFF);// 255,保证了最后8位bit是1,其余是0,表面上是byte,实际上是int
 
         SocketAddress address = new InetSocketAddress(dbIp, dbPort);
         Socket socket = new Socket();
@@ -34,11 +35,134 @@ public class MySqlConnectorSample {
         socket.setKeepAlive(true);
         socket.setReuseAddress(true);
         socket.connect(address, 5000);
-        System.out.println("服务器连接成功");
-
         InputStream input = new BufferedInputStream(socket.getInputStream(), 16384);
         OutputStream output = socket.getOutputStream();
 
+        System.out.println("======第一步. 与master建立连接");
+        connectMaster(input, output);
+
+        System.out.println("======第二步. 发送register_slave命令");
+        int serverId = sendRegisterSlave(socket, input, output);
+
+        System.out.println("======第三步. 发送dump命令");
+        // 1 [12] COM_BINLOG_DUMP
+        // 4 binlog-pos
+        // 2 flags
+        // 4 server-id
+        // string[EOF] binlog-filename
+        ByteArrayOutputStream body = new ByteArrayOutputStream();
+        body.write((byte) 0x12);
+        int pos = 4;
+        body.write(pos & 0xFF);
+        body.write(pos >>> 8 & 0xFF);
+        body.write(pos >>> 16 & 0xFF);
+        body.write(pos >>> 24 & 0xFF);
+        body.write(0x01);
+        body.write(0x00);
+        body.write(serverId & 0xFF);
+        body.write(serverId >>> 8 & 0xFF);
+        body.write(serverId >>> 16 & 0xFF);
+        body.write(serverId >>> 24 & 0xFF);
+        body.write("mysql-bin.000001".getBytes(StandardCharsets.UTF_8));
+
+        byte[] bodyBytes = body.toByteArray();
+        output.write(bodyBytes.length & 0xFF);
+        output.write(bodyBytes.length >>> 8 & 0xFF);
+        output.write(bodyBytes.length >>> 16 & 0xFF);
+        output.write((byte) 0x00);// sequence 0
+        output.write(bodyBytes);
+        byte[] payloadArr = readAndGetPayloadArr(input);
+        if (payloadArr[0] == 0) {
+            System.out.println("payload首位为0,成功!");
+            for (int i = 1; i < payloadArr.length; i++) {
+                System.out.print((char) payloadArr[i]);
+            }
+        } else {
+            System.out.println("失败!");
+            for (int i = 1; i < payloadArr.length; i++) {
+                System.out.print((char) payloadArr[i]);
+            }
+        }
+
+        socket.shutdownInput();
+        socket.shutdownOutput();
+        socket.close();
+    }
+
+    private static int sendRegisterSlave(Socket socket, InputStream input, OutputStream output) throws IOException {
+        ByteArrayOutputStream body = new ByteArrayOutputStream();
+        // 1 [15] COM_REGISTER_SLAVE
+        // 4 server-id
+        // 1 slaves hostname length
+        // string[$len] slaves hostname
+        // 1 slaves user len
+        // string[$len] slaves user
+        // 1 slaves password len
+        // string[$len] slaves password
+        // 2 slaves mysql-port
+        // 4 replication rank
+        // 4 master-id
+        body.write((byte) 0x15);
+        // server-id
+        int serverId = Math.abs(socket.getLocalAddress().getHostName().hashCode());
+        body.write((byte) (serverId & 0xFF));
+        body.write((byte) (serverId >>> 8 & 0xFF));
+        body.write((byte) (serverId >>> 16 & 0xFF));
+        body.write((byte) (serverId >>> 24 & 0xFF));
+        // slaves hostname length
+        InetSocketAddress localSocketAddress = (InetSocketAddress) socket.getLocalSocketAddress();
+        byte[] host = localSocketAddress.getHostString().getBytes();
+        body.write((byte) host.length);
+        // slaves hostname
+        body.write(host);
+        // slaves user len
+        body.write((byte) user.getBytes().length);
+        // slaves user
+        body.write(user.getBytes());
+        // slaves password len
+        body.write((byte) password.getBytes().length);
+        // slaves password
+        body.write(password.getBytes());
+        // slaves mysql-port
+        body.write((byte) (localSocketAddress.getPort() & 0xFF));
+        body.write((byte) (localSocketAddress.getPort() >>> 8 & 0xFF));
+        // replication rank
+        body.write((byte) 0x00);
+        body.write((byte) 0x00);
+        body.write((byte) 0x00);
+        body.write((byte) 0x00);
+        // master-id
+        body.write((byte) 0x00);
+        body.write((byte) 0x00);
+        body.write((byte) 0x00);
+        body.write((byte) 0x00);
+
+        byte[] bodyBytes = body.toByteArray();
+        byte[] header = new byte[4];
+        header[0] = ((byte) (bodyBytes.length & 0xFF));
+        header[1] = ((byte) (bodyBytes.length >>> 8 & 0xFF));
+        header[2] = ((byte) (bodyBytes.length >>> 16 & 0xFF));
+        header[3] = ((byte) 0x00);
+
+        output.write(header);
+        output.write(bodyBytes);
+        System.out.println("发送COM_REGISTER_SLAVE完毕");
+
+        byte[] payloadArr = readAndGetPayloadArr(input);
+        if (payloadArr[0] == 0) {
+            System.out.println("payload首位为0,register slave成功!");
+        } else {
+            System.out.println("register slave失败!");
+            for (int i = 1; i < payloadArr.length; i++) {
+                System.out.print((char) payloadArr[i]);
+            }
+        }
+
+        return serverId;
+    }
+
+    private static void connectMaster(InputStream input, OutputStream output) throws IOException {
+        System.out.println("服务器socket连接成功");
         // 接收handshake信息
         HandshakePayload handshakePayload = receiveHandshake(input);
         System.out.println("接收Handshake信息完毕");
@@ -55,8 +179,21 @@ public class MySqlConnectorSample {
         output.write(handshakeResponse);
         System.out.println("发送HandshakeResponse完毕");
 
+        byte[] payloadArr = readAndGetPayloadArr(input);
+        if (payloadArr[0] == 0) {
+            System.out.println("payload首位为0,数据库连接成功!");
+        } else {
+            System.out.println("数据库连接失败!");
+            for (int i = 1; i < payloadArr.length; i++) {
+                System.out.print((char) payloadArr[i]);
+            }
+        }
+    }
+
+    private static byte[] readAndGetPayloadArr(InputStream input) throws IOException {
         byte[] payloadLengthArr = readBytes(input, 3);
-        int payloadLength = (payloadLengthArr[0]) | (payloadLengthArr[1] << 8) | (payloadLengthArr[2] << 16);
+        int payloadLength = (payloadLengthArr[0] & 0xFF) | ((payloadLengthArr[1] & 0xFF) << 8)
+                            | ((payloadLengthArr[2] & 0xFF) << 16);
         System.out.println("    payloadLength:" + payloadLength);
 
         byte[] sequenceIdArr = readBytes(input, 1);
@@ -64,22 +201,12 @@ public class MySqlConnectorSample {
         System.out.println("    sequenceId:" + sequenceId);
 
         byte[] payloadArr = readBytes(input, payloadLength);
-        byte marker = payloadArr[0];
-        if(marker == 0){
-            System.out.println("payload首位为0,连接成功!");
-        } else {
-            System.out.println("连接失败!");
-            for (int i = 1; i < payloadArr.length; i++) {
-                System.out.print((char)payloadArr[i]);
-            }
-        }
-
-        socket.close();
+        return payloadArr;
     }
 
     private static HandshakePayload receiveHandshake(InputStream input) throws IOException {
         byte[] payloadLengthArr = readBytes(input, 3);
-        int payloadLength = (payloadLengthArr[0]& 0xFF) | (payloadLengthArr[1]& 0xFF << 8) | (payloadLengthArr[2]& 0xFF << 16);
+        int payloadLength = (payloadLengthArr[0] & 0xFF) | (payloadLengthArr[1] << 8) | (payloadLengthArr[2] << 16);
         System.out.println("    payloadLength:" + payloadLength);
 
         byte[] sequenceIdArr = readBytes(input, 1);
@@ -122,6 +249,8 @@ public class MySqlConnectorSample {
     public static byte[] generateHandshakeResponse(HandshakePayload handshakePayload) throws IOException {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         // 1. write client_flags
+        // 参见ClientAuthenticationPacket中的clientCapability
+        handshakePayload.setServerCapabilities(632325);
         out.write((byte) (handshakePayload.getServerCapabilities() & 0xFF));
         out.write((byte) (handshakePayload.getServerCapabilities() >>> 8) & 0xFF);
         out.write((byte) (handshakePayload.getServerCapabilities() >>> 16) & 0xFF);
@@ -140,14 +269,14 @@ public class MySqlConnectorSample {
         // 4. write (filler) always 0x00...
         out.write(new byte[23]);
         // 5. write (Null-Terminated String) user
-        out.write(user.getBytes());
+        out.write(user.getBytes(StandardCharsets.UTF_8));
         out.write(NULL_TERMINATED_STRING_DELIMITER);
         // 6. write (Length Coded Binary) scramble_buff (1 + x bytes)
         if (StringUtils.isEmpty(password)) {
             out.write(0x00);
         } else {
             try {
-                byte[] encryptedPassword = scramble411(password.getBytes(),
+                byte[] encryptedPassword = scramble411(password.getBytes(StandardCharsets.UTF_8),
                     joinAndCreateScrumbleBuff(handshakePayload));
                 writeBinaryCodedLengthBytes(encryptedPassword, out);
             } catch (NoSuchAlgorithmException e) {
@@ -155,11 +284,11 @@ public class MySqlConnectorSample {
             }
         }
         // 7 . (Null-Terminated String) databasename (optional)
-        // todo 此处有bug,无论dbName是否为空,都要out.write(NULL_TERMINATED_STRING_DELIMITER);
-        if (dbName != null) {
-            out.write(dbName.getBytes());
-        }
-        out.write(NULL_TERMINATED_STRING_DELIMITER);
+        // if (dbName != null) {
+        // out.write(dbName.getBytes());
+        // out.write(NULL_TERMINATED_STRING_DELIMITER);
+        // }
+
         // 8 . (Null-Terminated String) auth plugin name (optional)
         out.write("mysql_native_password".getBytes());
         out.write(NULL_TERMINATED_STRING_DELIMITER);
@@ -243,7 +372,8 @@ public class MySqlConnectorSample {
         handshakePayload.setServerVersion(new String(serverVersionBytes));
         index += (serverVersionBytes.length + 1);
         // 3. read thread_id
-        int threadId = (data[index]& 0xFF) | (data[index + 1]& 0xFF << 8) | (data[index + 2]& 0xFF << 16) | (data[index + 3]& 0xFF << 24);
+        int threadId = (data[index] & 0xFF) | (data[index + 1] & 0xFF << 8) | (data[index + 2] & 0xFF << 16)
+                       | (data[index + 3] & 0xFF << 24);
         handshakePayload.setThreadId(threadId);
         index += 4;
         // 4. read scramble_buff
@@ -259,10 +389,10 @@ public class MySqlConnectorSample {
             handshakePayload.setServerCharsetNumber(data[index]);
             index++;
             // 7. read server_status
-            handshakePayload.setServerStatus((data[index]& 0xFF) | (data[index + 1]& 0xFF << 8));
+            handshakePayload.setServerStatus((data[index] & 0xFF) | (data[index + 1] & 0xFF << 8));
             index += 2;
             // 8. bypass filtered bytes
-            int capabilityFlags2 = (data[index]& 0xFF) | (data[index + 1]& 0xFF << 8);
+            int capabilityFlags2 = (data[index] & 0xFF) | (data[index + 1] & 0xFF << 8);
             index += 2;
             int capabilities = (capabilityFlags2 << 16) | serverCapabilities;
             // int authPluginDataLen = -1;
