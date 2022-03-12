@@ -1,10 +1,8 @@
 <template>
   <div class="app-container">
     <div class="filter-container">
-      <el-input v-model="listQuery.dbIp" placeholder="数据库IP" style="width: 200px;" class="filter-item" />
       <el-button class="filter-item" type="primary" icon="el-icon-search" plain @click="queryData()">查询</el-button>
-      <el-button class="filter-item" type="primary" @click="handleCreate()">新建数据库</el-button>
-      <el-button class="filter-item" type="info" @click="fetchData()">刷新列表</el-button>
+      <el-button class="filter-item" type="primary" @click="handleCreate()">新建扩容配置</el-button>
     </div>
     <el-table
       v-loading="listLoading"
@@ -14,12 +12,12 @@
       fit
       highlight-current-row
     >
-      <el-table-column label="数据库名" min-width="200" align="center">
+      <el-table-column label="数据库名" min-width="100" align="center">
         <template slot-scope="scope">
           {{ scope.row.dbName }}
         </template>
       </el-table-column>
-      <el-table-column label="数据库IP" min-width="200" align="center">
+      <el-table-column label="数据库IP" min-width="100" align="center">
         <template slot-scope="scope">
           <span>{{ scope.row.dbIp }}</span>
         </template>
@@ -29,14 +27,19 @@
           {{ scope.row.dbPort }}
         </template>
       </el-table-column>
-      <el-table-column label="顺序" min-width="100" align="center">
+      <el-table-column label="租户编码的数据库字段名称" min-width="100" align="center">
         <template slot-scope="scope">
-          {{ scope.row.sequence }}
+          {{ scope.row.tenantCodeColumnName }}
         </template>
       </el-table-column>
-      <el-table-column class-db-name="status-col" label="状态" min-width="150" align="center">
+      <el-table-column label="用于触发扩容的关键表名" min-width="100" align="center">
         <template slot-scope="scope">
-          <el-tag :type="scope.row.status | statusFilter">{{ scope.row.status | statusLabel }}</el-tag>
+          {{ scope.row.keyTableName }}
+        </template>
+      </el-table-column>
+      <el-table-column label="表数据量阈值" min-width="100" align="center">
+        <template slot-scope="scope">
+          {{ scope.row.tableCountThreshold }}
         </template>
       </el-table-column>
       <el-table-column align="center" prop="created_at" label="操作" min-width="150">
@@ -56,23 +59,24 @@
     <pagination v-show="count>0" :total="count" :page.sync="listQuery.page" :limit.sync="listQuery.size" @pagination="fetchData()" />
     <el-dialog :visible.sync="dialogFormVisible" :title="textMap[dialogStatus]" width="600px">
       <el-form ref="dataForm" :rules="rules" :model="nodeModel" label-position="left" label-width="120px" style="width: 400px; margin-left:30px;">
-        <el-form-item label="数据库IP" prop="dbIp">
-          <el-input v-model="nodeModel.dbIp" />
+        <el-form-item label="数据库实例" prop="dbInfoId">
+          <el-select v-model="nodeModel.dbInfoId" placeholder="请选择" style="width:100%">
+            <el-option
+              v-for="item in dbInfos"
+              :key="item.id"
+              :label="item.dbName+' '+item.dbIp+':'+item.dbPort"
+              :value="item.id"
+            />
+          </el-select>
         </el-form-item>
-        <el-form-item label="数据库端口" prop="dbPort">
-          <el-input v-model="nodeModel.dbPort" placeholder="3306" type="number" />
+        <el-form-item label="租户编码的数据库字段名称" prop="tenantCodeColumnName">
+          <el-input v-model="nodeModel.tenantCodeColumnName" placeholder="tenant_code" />
         </el-form-item>
-        <el-form-item label="数据库名" prop="dbName">
-          <el-input v-model="nodeModel.dbName" />
+        <el-form-item label="用于触发扩容的关键表名" prop="keyTableName">
+          <el-input v-model="nodeModel.keyTableName" placeholder="order_info等关键表"/>
         </el-form-item>
-        <el-form-item label="数据库用户" prop="dbUserName">
-          <el-input v-model="nodeModel.dbUserName" />
-        </el-form-item>
-        <el-form-item label="数据库密码" prop="dbPassword">
-          <el-input v-model="nodeModel.dbPassword" />
-        </el-form-item>
-        <el-form-item label="顺序" prop="sequence">
-          <el-input v-model="nodeModel.sequence" placeholder="升序排序" type="number" />
+        <el-form-item label="表数据量阈值" prop="tableCountThreshold">
+          <el-input v-model="nodeModel.tableCountThreshold" type="number" />
         </el-form-item>
       </el-form>
       <div slot="footer" class="dialog-footer">
@@ -84,27 +88,12 @@
 </template>
 
 <script>
-import { addDbInfo, getDbInfos, updateDbInfo, deleteDbInfo } from '@/api/dbInfo'
+import { addDbTransferConfig, getDbTransferConfigs, updateDbTransferConfig, deleteDbTransferConfig } from '@/api/dbTransferConfig'
+import { getAllDbInfos } from '@/api/dbInfo'
 import Pagination from '@/components/Pagination'
 
 export default {
   components: { Pagination },
-  filters: {
-    statusFilter(status) {
-      const statusMap = {
-        1: 'success',
-        0: 'gray'
-      }
-      return statusMap[status]
-    },
-    statusLabel(status) {
-      const statusMap = {
-        1: '连接成功',
-        0: '连接失败'
-      }
-      return statusMap[status]
-    }
-  },
   data() {
     return {
       list: null,
@@ -112,45 +101,42 @@ export default {
       listLoading: true,
       count: 0,
       listQuery: {
-        dbName: '',
-        dbIp: '',
         page: 1,
         size: 20
       },
       dialogFormVisible: false,
       textMap: {
-        create: '新建数据库信息',
-        update: '修改数据库信息'
+        create: '新建扩容配置',
+        update: '修改扩容配置'
       },
+      dbInfos: [],
       nodeModel: {
         id: undefined,
-        dbName: null,
-        dbIp: null,
-        dbPort: 3306,
-        dbUserName: null,
-        dbPassword: null,
-        sequence: 0,
-        status: 0
+        tenantCodeColumnName: '',
+        keyTableName: '',
+        tableCountThreshold: 100000,
+        dbInfoId: undefined
       },
       rules: {
-        dbName: [{ required: true, message: '数据库名不能为空', trigger: 'change' }],
-        dbIp: [{ required: true, message: '数据库IP不能为空', trigger: 'change' }],
-        dbPort: [{ required: true, message: '数据库端口不能为空', trigger: 'change' }],
-        dbUserName: [{ required: true, message: '数据库用户不能为空', trigger: 'change' }],
-        dbPassword: [{ required: true, message: '数据库密码不能为空', trigger: 'change' }],
-        sequence: [{ required: true, message: '顺序不能为空', trigger: 'change' }]
+        tenantCodeColumnName: [{ required: true, message: '租户编码的数据库字段名称不能为空', trigger: 'change' }],
+        keyTableName: [{ required: true, message: '用于触发扩容的关键表名不能为空', trigger: 'change' }],
+        tableCountThreshold: [{ required: true, message: '表数据量阈值不能为空', trigger: 'change' }],
+        dbInfoId: [{ required: true, message: '数据库实例不能为空', trigger: 'change' }]
       },
       dialogStatus: 'create'
     }
   },
   // { min: 2, max: 5, message: '长度在 2 到 5 个字符', trigger: 'change' }
   created() {
+    getAllDbInfos().then(res => {
+      this.dbInfos = res.data
+    })
     this.fetchData()
   },
   methods: {
     fetchData() {
       this.listLoading = true
-      getDbInfos(this.listQuery).then(res => {
+      getDbTransferConfigs(this.listQuery).then(res => {
         this.list = res.data.items
         this.count = res.data.count
       }).finally(() => {
@@ -164,13 +150,10 @@ export default {
     resetModel() {
       this.nodeModel = {
         id: undefined,
-        dbName: null,
-        dbIp: null,
-        dbPort: 3306,
-        dbUserName: null,
-        dbPassword: null,
-        sequence: 0,
-        status: 0
+        tenantCodeColumnName: '',
+        keyTableName: '',
+        tableCountThreshold: 100000,
+        dbInfoId: undefined
       }
     },
     handleCreate() {
@@ -185,12 +168,12 @@ export default {
       this.$refs['dataForm'].validate((valid) => {
         if (valid) {
           if (this.dialogStatus === 'create') {
-            addDbInfo(this.nodeModel).then(res => {
+            addDbTransferConfig(this.nodeModel).then(res => {
               this.operationRes(res)
             })
           }
           if (this.dialogStatus === 'update') {
-            updateDbInfo(this.nodeModel).then(res => {
+            updateDbTransferConfig(this.nodeModel).then(res => {
               this.operationRes(res)
             })
           }
@@ -215,6 +198,7 @@ export default {
     handleUpdate(row) {
       this.resetModel()
       this.nodeModel = Object.assign({}, row)
+      console.log(this.dbInfos)
       this.dialogStatus = 'update'
       this.dialogFormVisible = true
       this.$nextTick(() => {
@@ -222,21 +206,21 @@ export default {
       })
     },
     handleDelete(row) {
-      this.$confirm('删除数据库会导致扩容信息丢失', '确定删除数据库信息', {
+      this.$confirm('删除配置会导致扩容信息丢失', '确定删除配置信息', {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
         type: 'warning'
       }).then(() => {
-        deleteDbInfo(row.id).then((res) => {
+        deleteDbTransferConfig(row.id).then((res) => {
           if (res.data === 'success') {
             this.fetchData()
             this.$message({
-              message: '删除数据库信息成功',
+              message: '删除配置成功',
               type: 'success'
             })
           } else {
             this.$message({
-              message: '删除数据库信息失败',
+              message: '删除配置失败',
               type: 'error'
             })
           }

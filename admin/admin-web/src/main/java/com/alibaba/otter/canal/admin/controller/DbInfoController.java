@@ -7,6 +7,8 @@ import com.alibaba.otter.canal.admin.service.DbInfoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 /**
  * 数据库信息控制层
  *
@@ -21,7 +23,7 @@ public class DbInfoController {
     DbInfoService dbInfoService;
 
     /**
-     * 获取所有数据库信息列表
+     * 获取所有数据库信息列表(分页)
      *
      * @param dbInfo 筛选条件
      * @param env 环境变量
@@ -31,6 +33,20 @@ public class DbInfoController {
     public BaseModel<Pager<DbInfo>> dbInfos(DbInfo dbInfo, Pager<DbInfo> pager,
                                                     @PathVariable String env) {
         return BaseModel.getInstance(dbInfoService.findList(dbInfo, pager));
+    }
+
+
+    /**
+     * 获取所有数据库信息列表
+     *
+     * @param dbInfo 筛选条件
+     * @param env 环境变量
+     * @return 数据库信息列表
+     */
+    @GetMapping(value = "/allDbInfos")
+    public BaseModel<List<DbInfo>> dbInfos(DbInfo dbInfo,
+                                           @PathVariable String env) {
+        return BaseModel.getInstance(dbInfoService.findAll(dbInfo));
     }
 
     /**

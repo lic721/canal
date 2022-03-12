@@ -134,6 +134,12 @@ export const constantRoutes = [
         name: '数据库管理',
         component: () => import('@/views/canalServer/DbInfo'),
         meta: { title: '数据库管理', icon: 'form' }
+      },
+      {
+        path: 'dbTransferConfig',
+        name: '扩容触发配置',
+        component: () => import('@/views/canalServer/DbTransferConfig'),
+        meta: { title: '扩容触发配置', icon: 'form' }
       }
     ]
   },

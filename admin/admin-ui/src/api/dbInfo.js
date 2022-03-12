@@ -8,6 +8,14 @@ export function getDbInfos(params) {
   })
 }
 
+export function getAllDbInfos(params) {
+  return request({
+    url: '/allDbInfos',
+    method: 'get',
+    params: params
+  })
+}
+
 export function addDbInfo(data) {
   return request({
     url: '/dbInfo',

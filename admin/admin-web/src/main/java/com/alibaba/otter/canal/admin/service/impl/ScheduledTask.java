@@ -45,7 +45,11 @@ public class ScheduledTask {
 
             // 无进行中的迁移
             // 判断是否满足迁移条件
-            //dbTransferConfig.getDbInfoId()
+//            dbTransferConfig.getDbInfoId()
+
+            // 触发迁移
+            // 新建canal_instance_config
+            // 从canal_cluster和canal_config中获取mq配置, 启动mq消费
 
         }
 

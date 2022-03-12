@@ -33,7 +33,8 @@ public class MySqlConnectors {
                 .append("/")
                 .append(di.getDbName())
                 .append("?useSSL=false&connectTimeout=3000");
-            DriverManager.getConnection(url.toString(), di.getDbUserName(), di.getDbPassword());
+            Connection connection = DriverManager.getConnection(url.toString(), di.getDbUserName(), di.getDbPassword());
+            connection.close();
         } catch (Exception e) {
             logger.error("connect database, failed", e);
             return false;
