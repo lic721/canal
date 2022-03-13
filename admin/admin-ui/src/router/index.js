@@ -133,13 +133,19 @@ export const constantRoutes = [
         path: 'dbInfo',
         name: '数据库管理',
         component: () => import('@/views/canalServer/DbInfo'),
-        meta: { title: '数据库管理', icon: 'form' }
+        meta: { title: '数据库管理', icon: 'table' }
       },
       {
         path: 'dbTransferConfig',
         name: '扩容配置',
         component: () => import('@/views/canalServer/DbTransferConfig'),
         meta: { title: '扩容配置', icon: 'form' }
+      },
+      {
+        path: 'dbTransferHistory',
+        name: '扩容历史',
+        component: () => import('@/views/canalServer/DbTransferHistory'),
+        meta: { title: '扩容历史', icon: 'example' }
       }
     ]
   },
