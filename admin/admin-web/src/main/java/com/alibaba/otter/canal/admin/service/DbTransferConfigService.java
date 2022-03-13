@@ -17,6 +17,12 @@ public interface DbTransferConfigService {
      * @param dbTransferConfig the db info
      */
     void save(DbTransferConfig dbTransferConfig);
+    /**
+     * Save.
+     *
+     * @param dbTransferConfigDTO the db info
+     */
+    void saveIgnoreTransferTables(DbTransferConfigDTO dbTransferConfigDTO);
 
     /**
      * Detail db info.

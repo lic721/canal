@@ -40,6 +40,19 @@ public class DbTransferConfigServiceImpl implements DbTransferConfigService {
     }
 
     @Override
+    public void saveIgnoreTransferTables(DbTransferConfigDTO dbTransferConfigDTO) {
+
+        // 先清空, 再插入
+        DbIgnoreTransferTable.find.query().where().eq("dbTransferConfigId", dbTransferConfigDTO.getId()).delete();
+        for (DbIgnoreTransferTable ignoreTransferTable : dbTransferConfigDTO.getIgnoreTransferTables()) {
+            if (!StringUtils.isBlank(ignoreTransferTable.getTableName())) {
+                ignoreTransferTable.setDbTransferConfigId(dbTransferConfigDTO.getId());
+                ignoreTransferTable.save();
+            }
+        }
+    }
+
+    @Override
     public DbTransferConfig detail(Long id) {
         return DbTransferConfig.find.byId(id);
     }
@@ -103,6 +116,13 @@ public class DbTransferConfigServiceImpl implements DbTransferConfigService {
                 dto.setDbPort(dbInfo.getDbPort());
                 dto.setDbName(dbInfo.getDbName());
             }
+            // 无视扩容的表
+            List<DbIgnoreTransferTable> ignoreTransferTables = DbIgnoreTransferTable.find.query()
+                .where()
+                .eq("dbTransferConfigId", transferConfig.getId())
+                .findList();
+            dto.setIgnoreTransferTables(ignoreTransferTables);
+
             dtoList.add(dto);
         }
         pager.setItems(dtoList);

@@ -12,19 +12,9 @@
       fit
       highlight-current-row
     >
-      <el-table-column label="数据库名" min-width="100" align="center">
+      <el-table-column label="数据库实例" min-width="200" align="center">
         <template slot-scope="scope">
-          {{ scope.row.dbName }}
-        </template>
-      </el-table-column>
-      <el-table-column label="数据库IP" min-width="100" align="center">
-        <template slot-scope="scope">
-          <span>{{ scope.row.dbIp }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column label="数据库端口" min-width="100" align="center">
-        <template slot-scope="scope">
-          {{ scope.row.dbPort }}
+          {{ scope.row.dbName+' '+scope.row.dbIp+':'+scope.row.dbPort }}
         </template>
       </el-table-column>
       <el-table-column label="租户编码的数据库字段名称" min-width="100" align="center">
@@ -49,6 +39,7 @@
               操作<i class="el-icon-arrow-down el-icon--right" />
             </el-button>
             <el-dropdown-menu slot="dropdown">
+              <el-dropdown-item @click.native="handleIgnoreTransferTable(scope.row)">无视扩容配置</el-dropdown-item>
               <el-dropdown-item @click.native="handleUpdate(scope.row)">修改</el-dropdown-item>
               <el-dropdown-item @click.native="handleDelete(scope.row)">删除</el-dropdown-item>
             </el-dropdown-menu>
@@ -70,10 +61,10 @@
           </el-select>
         </el-form-item>
         <el-form-item label="租户编码的数据库字段名称" prop="tenantCodeColumnName">
-          <el-input v-model="nodeModel.tenantCodeColumnName" placeholder="tenant_code" />
+          <el-input v-model="nodeModel.tenantCodeColumnName" placeholder="例如:tenant_code" />
         </el-form-item>
         <el-form-item label="用于触发扩容的关键表名" prop="keyTableName">
-          <el-input v-model="nodeModel.keyTableName" placeholder="order_info等关键表"/>
+          <el-input v-model="nodeModel.keyTableName" placeholder="例如:order_info" />
         </el-form-item>
         <el-form-item label="表数据量阈值" prop="tableCountThreshold">
           <el-input v-model="nodeModel.tableCountThreshold" type="number" />
@@ -84,11 +75,25 @@
         <el-button type="primary" @click="dataOperation()">确定</el-button>
       </div>
     </el-dialog>
+
+    <el-dialog :visible.sync="ignoreTransferTableFormVisible" title="无视扩容的表" width="600px">
+      <el-form label-position="left" label-width="120px" style="width: 400px; margin-left:30px;">
+        <el-form-item v-for="(item, index) in ignoreTransferTablesForm.ignoreTransferTables" label="表名" :key="item.index">
+          <el-input v-model="item.tableName" style="width:60%" placeholder="请输入表名" />
+          <i class="el-icon-plus" @click="addItem(index)" />
+          <i v-show="index !== 0" class="el-icon-minus" @click="removeItem(index)" />
+        </el-form-item>
+      </el-form>
+      <div slot="footer" class="dialog-footer">
+        <el-button @click="ignoreTransferTableFormVisible = false">取消</el-button>
+        <el-button type="primary" @click="saveIngoreTransferTables()">确定</el-button>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script>
-import { addDbTransferConfig, getDbTransferConfigs, updateDbTransferConfig, deleteDbTransferConfig } from '@/api/dbTransferConfig'
+import { saveIgnoreTransferTables, addDbTransferConfig, getDbTransferConfigs, updateDbTransferConfig, deleteDbTransferConfig } from '@/api/dbTransferConfig'
 import { getAllDbInfos } from '@/api/dbInfo'
 import Pagination from '@/components/Pagination'
 
@@ -105,6 +110,11 @@ export default {
         size: 20
       },
       dialogFormVisible: false,
+      ignoreTransferTableFormVisible: false,
+      ignoreTransferTablesForm: {
+        id: undefined, // db_transfer_config的id
+        ignoreTransferTables: []
+      },
       textMap: {
         create: '新建扩容配置',
         update: '修改扩容配置'
@@ -134,6 +144,16 @@ export default {
     this.fetchData()
   },
   methods: {
+    // 增加输入项
+    addItem(index) {
+      this.ignoreTransferTablesForm.ignoreTransferTables.splice(index + 1, 0, {
+        tableName: ''
+      })
+    },
+    // 减少输入项
+    removeItem(index) {
+      this.ignoreTransferTablesForm.ignoreTransferTables.splice(index, 1)
+    },
     fetchData() {
       this.listLoading = true
       getDbTransferConfigs(this.listQuery).then(res => {
@@ -162,6 +182,23 @@ export default {
       this.dialogFormVisible = true
       this.$nextTick(() => {
         this.$refs['dataForm'].clearValidate()
+      })
+    },
+    saveIngoreTransferTables() {
+      saveIgnoreTransferTables(this.ignoreTransferTablesForm).then(res => {
+        if (res.data === 'success') {
+          this.fetchData()
+          this.ignoreTransferTableFormVisible = false
+          this.$message({
+            message: '保存成功',
+            type: 'success'
+          })
+        } else {
+          this.$message({
+            message: '保存失败',
+            type: 'error'
+          })
+        }
       })
     },
     dataOperation() {
@@ -195,10 +232,19 @@ export default {
         })
       }
     },
+    handleIgnoreTransferTable(row) {
+      this.ignoreTransferTablesForm.id = row.id
+      this.ignoreTransferTablesForm.ignoreTransferTables = row.ignoreTransferTables
+      if (this.ignoreTransferTablesForm.ignoreTransferTables.length === 0) {
+        this.ignoreTransferTablesForm.ignoreTransferTables.splice(0, 0, {
+          tableName: ''
+        })
+      }
+      this.ignoreTransferTableFormVisible = true
+    },
     handleUpdate(row) {
       this.resetModel()
       this.nodeModel = Object.assign({}, row)
-      console.log(this.dbInfos)
       this.dialogStatus = 'update'
       this.dialogFormVisible = true
       this.$nextTick(() => {

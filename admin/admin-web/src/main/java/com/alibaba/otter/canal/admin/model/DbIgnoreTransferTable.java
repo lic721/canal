@@ -11,24 +11,24 @@ import io.ebean.annotation.WhenCreated;
 import io.ebean.annotation.WhenModified;
 
 /**
- * 数据库扩容表的配置表
+ * 数据库无视扩容表
  *
  * @author zhihua.li
  * @version 1.0.0
  */
 @Entity
-@Table(name = "db_transfer_config_table")
-public class DbTransferConfigTable extends Model {
+@Table(name = "db_ignore_transfer_table")
+public class DbIgnoreTransferTable extends Model {
 
-    public static final DbTransferConfigTableFinder find = new DbTransferConfigTableFinder();
+    public static final DbIgnoreTransferTableFinder find = new DbIgnoreTransferTableFinder();
 
-    public static class DbTransferConfigTableFinder extends Finder<Long, DbTransferConfigTable> {
+    public static class DbIgnoreTransferTableFinder extends Finder<Long, DbIgnoreTransferTable> {
 
         /**
          * Construct using the default EbeanServer.
          */
-        public DbTransferConfigTableFinder(){
-            super(DbTransferConfigTable.class);
+        public DbIgnoreTransferTableFinder(){
+            super(DbIgnoreTransferTable.class);
         }
 
     }
@@ -36,8 +36,6 @@ public class DbTransferConfigTable extends Model {
     @Id
     private Long    id;
     private String  tableName;
-    private Boolean ignoreFlag;
-    private Boolean deleteAfterTransfer;
     private Long    dbTransferConfigId;
     @WhenCreated
     private Date    creationDate;
@@ -58,22 +56,6 @@ public class DbTransferConfigTable extends Model {
 
     public void setTableName(String tableName) {
         this.tableName = tableName;
-    }
-
-    public Boolean getIgnoreFlag() {
-        return ignoreFlag;
-    }
-
-    public void setIgnoreFlag(Boolean ignoreFlag) {
-        this.ignoreFlag = ignoreFlag;
-    }
-
-    public Boolean getDeleteAfterTransfer() {
-        return deleteAfterTransfer;
-    }
-
-    public void setDeleteAfterTransfer(Boolean deleteAfterTransfer) {
-        this.deleteAfterTransfer = deleteAfterTransfer;
     }
 
     public Long getDbTransferConfigId() {

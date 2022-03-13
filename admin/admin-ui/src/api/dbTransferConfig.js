@@ -8,6 +8,14 @@ export function getDbTransferConfigs(params) {
   })
 }
 
+export function saveIgnoreTransferTables(data) {
+  return request({
+    url: '/dbIgnoreTransferTables',
+    method: 'post',
+    data
+  })
+}
+
 export function addDbTransferConfig(data) {
   return request({
     url: '/dbTransferConfig',

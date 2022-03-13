@@ -49,6 +49,19 @@ public class DbTransferConfigController {
     }
 
     /**
+     * 保存无视扩容的表
+     *
+     * @param dbTransferConfig 数据库扩容配置
+     * @param env 环境变量
+     * @return 是否成功
+     */
+    @PostMapping(value = "/dbIgnoreTransferTables")
+    public BaseModel<String> saveIgnoreTransferTables(@RequestBody DbTransferConfigDTO dbTransferConfig, @PathVariable String env) {
+        dbTransferConfigService.saveIgnoreTransferTables(dbTransferConfig);
+        return BaseModel.getInstance("success");
+    }
+
+    /**
      * 获取数据库扩容配置详情
      *
      * @param id 数据库扩容配置id
