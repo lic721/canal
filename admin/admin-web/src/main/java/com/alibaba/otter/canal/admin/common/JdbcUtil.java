@@ -14,7 +14,7 @@ public class JdbcUtil {
     /**
      * 定义数据库的链接
      */
-    private Connection conn;
+    private Connection        conn;
     /**
      * 定义数据库的链接
      */
@@ -22,7 +22,7 @@ public class JdbcUtil {
     /**
      * 定义数据库的链接
      */
-    private ResultSet rs;
+    private ResultSet         rs;
 
     /**
      * 初始化
@@ -32,13 +32,13 @@ public class JdbcUtil {
      * @param username
      * @param password
      */
-    public JdbcUtil(String driver, String url, String username, String password) {
+    public JdbcUtil(String driver, String url, String username, String password) throws SQLException {
         try {
             Class.forName(driver);
-            conn = DriverManager.getConnection(url, username, password);
-        } catch (Exception e) {
+        } catch (ClassNotFoundException e) {
             e.printStackTrace();
         }
+        conn = DriverManager.getConnection(url, username, password);
     }
 
     /**
@@ -87,7 +87,7 @@ public class JdbcUtil {
         while (rs.next()) {
             Map map = new HashMap();
             for (int i = 0; i < colsLen; i++) {
-                String colsName = metaData.getColumnName(i + 1);
+                String colsName = metaData.getColumnLabel(i + 1);
                 Object colsValue = rs.getObject(colsName);
                 if (null == colsValue) {
                     colsValue = "";
