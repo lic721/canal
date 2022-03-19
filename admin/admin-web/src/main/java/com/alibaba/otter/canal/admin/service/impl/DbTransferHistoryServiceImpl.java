@@ -26,7 +26,6 @@ public class DbTransferHistoryServiceImpl implements DbTransferHistoryService {
     public void save(DbTransferHistory dbTransferHistory) {
         int cnt = DbTransferHistory.find.query()
             .where()
-            .eq("sourceDbInfoId", dbTransferHistory.getSourceDbInfoId())
             .isNull("end_time")
             .findCount();
         if (cnt > 0) {

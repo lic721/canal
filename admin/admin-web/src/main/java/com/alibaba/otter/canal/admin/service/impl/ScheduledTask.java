@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.otter.canal.admin.common.JdbcUtil;
 import com.alibaba.otter.canal.admin.connector.MySqlConnectors;
+import com.alibaba.otter.canal.admin.dto.DbTransferPlanDTO;
 import com.alibaba.otter.canal.admin.model.*;
 
 /**
@@ -39,6 +40,8 @@ public class ScheduledTask {
             return;
         }
         Long clusterId = canalClusters.get(0).getId();
+
+        List<DbInfo> sortedDbInfoList = DbInfo.find.query().order().asc("sequence").findList();
 
         List<DbTransferConfig> dbTransferConfigList = DbTransferConfig.find.query().findList();
         logger.info("数据库扩容配置表 size:{}", dbTransferConfigList.size());
@@ -70,12 +73,15 @@ public class ScheduledTask {
                     dbTransferHistory.save();
 
                     // 计算最优迁移方案:优先迁移到顺序小的db_info,迁移后剩余数据量小于阈值
+                    DbTransferPlanDTO transferPlanDTO = new DbTransferPlanDTO();
+                    transferPlanDTO.setSourceDbInfoId(dbTransferConfig.getDbInfoId());
+
                     String sql = "select count(*) as cnt," + dbTransferConfig.getTenantCodeColumnName()
                                  + " as tenantCode from " + dbTransferConfig.getKeyTableName() + " group by "
                                  + dbTransferConfig.getTenantCodeColumnName() + " order by cnt desc";
                     try {
-                        List<Map> queryTableList = jdbcUtil.selectByParams(sql, null);
                         List<String> transferTenantCodeList = new ArrayList<>();
+                        List<Map> queryTableList = jdbcUtil.selectByParams(sql, null);
                         long sum = 0L;
                         for (Map map : queryTableList) {
                             long count = Long.parseLong(map.get("cnt").toString());
@@ -94,11 +100,21 @@ public class ScheduledTask {
                                     remainCount,
                                     dbTransferConfig.getTableCountThreshold());
                             }
-
                         }
+                        transferPlanDTO.setTransferTenantCodeList(transferTenantCodeList);
+                        // 根据DbInfo的顺序来决定targetDbInfo
+                        for (DbInfo targetDbInfo : sortedDbInfoList) {
+                            if (!targetDbInfo.getDbIp().equals(dbInfo.getDbIp())) {
+                                transferPlanDTO.setTargetDbInfoId(targetDbInfo.getId());
+                                break;
+                            }
+                        }
+                        // mq
+                        transferPlanDTO.setMqTopic("");
 
                     } catch (SQLException e) {
                         logger.error("sql:" + sql, e);
+                        continue;
                     }
 
                     // 新建canal_instance_config
