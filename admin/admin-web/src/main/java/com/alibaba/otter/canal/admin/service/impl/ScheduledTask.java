@@ -1,13 +1,17 @@
 package com.alibaba.otter.canal.admin.service.impl;
 
 import java.sql.SQLException;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
+import com.alibaba.otter.canal.admin.service.CanalInstanceService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -23,12 +27,17 @@ import com.alibaba.otter.canal.admin.model.*;
 @Component
 public class ScheduledTask {
 
-    private static final Logger logger = LoggerFactory.getLogger(ScheduledTask.class);
+    private static final Logger logger             = LoggerFactory.getLogger(ScheduledTask.class);
+
+    private static final Date   DEFAULT_START_TIME = new Date(0L);
+
+    @Autowired
+    CanalInstanceService        canalInstanceConfigService;
 
     @Scheduled(cron = "*/15 * * * * ?")
     public void execute() {
 
-        int runningCnt = DbTransferHistory.find.query().where().isNull("end_time").findCount();
+        int runningCnt = DbTransferHistory.find.query().where().isNull("endTime").findCount();
         if (runningCnt > 0) {
             logger.info("存在运行中的扩容, 数目:{}", runningCnt);
             return;
@@ -64,17 +73,12 @@ public class ScheduledTask {
                 long keyTableTotalCount = getKeyTableTotalCount(dbTransferConfig, jdbcUtil);
                 if (keyTableTotalCount > dbTransferConfig.getTableCountThreshold()) {
                     // 触发迁移
-                    DbTransferHistory dbTransferHistory = new DbTransferHistory();
-                    dbTransferHistory.setStartTime(new Date());
-                    dbTransferHistory.setSourceDbInfoId(dbTransferConfig.getDbInfoId());
-                    dbTransferHistory.setTargetDbInfoId(-1L);
-                    dbTransferHistory.setCanalInstanceConfigId(-1L);
-                    dbTransferHistory.setMqTopic("");
-                    dbTransferHistory.save();
+                    // 插入扩容记录,通过唯一索引来防止重复扩容
+                    DbTransferHistory tempDbTransferHistory = insertDbTransferHistory(dbTransferConfig);
 
                     // 计算最优迁移方案:优先迁移到顺序小的db_info,迁移后剩余数据量小于阈值
                     DbTransferPlanDTO transferPlanDTO = new DbTransferPlanDTO();
-                    transferPlanDTO.setSourceDbInfoId(dbTransferConfig.getDbInfoId());
+                    transferPlanDTO.setSourceDbInfoId(tempDbTransferHistory.getSourceDbInfoId());
 
                     String sql = "select count(*) as cnt," + dbTransferConfig.getTenantCodeColumnName()
                                  + " as tenantCode from " + dbTransferConfig.getKeyTableName() + " group by "
@@ -110,7 +114,7 @@ public class ScheduledTask {
                             }
                         }
                         // mq
-                        transferPlanDTO.setMqTopic("");
+                        transferPlanDTO.setMqTopic("source" + transferPlanDTO.getSourceDbInfoId());
 
                     } catch (SQLException e) {
                         logger.error("sql:" + sql, e);
@@ -119,14 +123,49 @@ public class ScheduledTask {
 
                     // 新建canal_instance_config
                     CanalInstanceConfig canalInstanceConfig = new CanalInstanceConfig();
-                    // 从canal_cluster和canal_config中获取mq配置, 重新启动mq消费
+                    canalInstanceConfig
+                        .setName(transferPlanDTO.getSourceDbInfoId() + "_" + transferPlanDTO.getTargetDbInfoId());
+                    canalInstanceConfig.setClusterServerId("cluster:" + clusterId);
+                    // todo content
+                    canalInstanceConfig.setContent("");
+                    canalInstanceConfigService.save(canalInstanceConfig);
 
+                    // 重新启动mq消费
+
+                    // 启动canalInstance
+                    canalInstanceConfigService.remoteOperation(canalInstanceConfig.getId(), null, "start");
+
+                    // 更新扩容历史
+                    transferPlanDTO.setStartTime(new Date());
+                    DbTransferHistory transferHistory = DbTransferHistory.find.query()
+                        .where()
+                        .eq("sourceDbInfoId", transferPlanDTO.getSourceDbInfoId())
+                        .eq("startTime", DEFAULT_START_TIME)
+                        .findOne();
+                    transferHistory.setStartTime(transferPlanDTO.getStartTime());
+                    transferHistory.setTargetDbInfoId(transferPlanDTO.getTargetDbInfoId());
+                    transferHistory.setDbTransferConfigJson(JSON.toJSONString(dbTransferConfig));
+                    transferHistory.setRemark("");
+                    transferHistory.setCanalInstanceConfigId(transferPlanDTO.getCanalInstanceConfigId());
+                    transferHistory.setMqTopic(transferPlanDTO.getMqTopic());
+                    transferHistory.update();
                 }
             } finally {
                 jdbcUtil.release();
             }
         }
 
+    }
+
+    private DbTransferHistory insertDbTransferHistory(DbTransferConfig dbTransferConfig) {
+        DbTransferHistory dbTransferHistory = new DbTransferHistory();
+        dbTransferHistory.setStartTime(DEFAULT_START_TIME);
+        dbTransferHistory.setSourceDbInfoId(dbTransferConfig.getDbInfoId());
+        dbTransferHistory.setTargetDbInfoId(-1L);
+        dbTransferHistory.setCanalInstanceConfigId(-1L);
+        dbTransferHistory.setMqTopic("");
+        dbTransferHistory.insert();
+        return dbTransferHistory;
     }
 
     private JdbcUtil getJdbcUtil(DbInfo dbInfo) {

@@ -26,7 +26,7 @@ public class DbTransferHistoryServiceImpl implements DbTransferHistoryService {
     public void save(DbTransferHistory dbTransferHistory) {
         int cnt = DbTransferHistory.find.query()
             .where()
-            .isNull("end_time")
+            .isNull("endTime")
             .findCount();
         if (cnt > 0) {
             throw new ServiceException("存在运行中的扩容");
