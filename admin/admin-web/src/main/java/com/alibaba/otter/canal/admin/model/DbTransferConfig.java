@@ -39,6 +39,10 @@ public class DbTransferConfig extends Model {
     private String keyTableName;
     private Long   tableCountThreshold;
     private Long   dbInfoId;
+    private String binlogJournalName;
+    private Long   binlogPosition;
+    private Long   binlogTimestamp;
+
     @WhenCreated
     private Date   creationDate;
     @WhenModified
@@ -82,6 +86,30 @@ public class DbTransferConfig extends Model {
 
     public void setDbInfoId(Long dbInfoId) {
         this.dbInfoId = dbInfoId;
+    }
+
+    public String getBinlogJournalName() {
+        return binlogJournalName;
+    }
+
+    public void setBinlogJournalName(String binlogJournalName) {
+        this.binlogJournalName = binlogJournalName;
+    }
+
+    public Long getBinlogPosition() {
+        return binlogPosition;
+    }
+
+    public void setBinlogPosition(Long binlogPosition) {
+        this.binlogPosition = binlogPosition;
+    }
+
+    public Long getBinlogTimestamp() {
+        return binlogTimestamp;
+    }
+
+    public void setBinlogTimestamp(Long binlogTimestamp) {
+        this.binlogTimestamp = binlogTimestamp;
     }
 
     public Date getCreationDate() {

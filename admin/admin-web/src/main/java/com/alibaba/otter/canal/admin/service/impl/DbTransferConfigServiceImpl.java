@@ -1,25 +1,20 @@
 package com.alibaba.otter.canal.admin.service.impl;
 
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
-import com.alibaba.otter.canal.admin.dto.DbTransferConfigDTO;
-import com.alibaba.otter.canal.admin.model.*;
-import com.alibaba.otter.canal.admin.service.DbInfoService;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.alibaba.otter.canal.admin.common.Threads;
 import com.alibaba.otter.canal.admin.common.exception.ServiceException;
-import com.alibaba.otter.canal.admin.connector.MySqlConnectors;
+import com.alibaba.otter.canal.admin.dto.DbTransferConfigDTO;
+import com.alibaba.otter.canal.admin.model.DbIgnoreTransferTable;
+import com.alibaba.otter.canal.admin.model.DbInfo;
 import com.alibaba.otter.canal.admin.model.DbTransferConfig;
+import com.alibaba.otter.canal.admin.model.Pager;
+import com.alibaba.otter.canal.admin.service.DbInfoService;
 import com.alibaba.otter.canal.admin.service.DbTransferConfigService;
 
 import io.ebean.Query;
@@ -68,7 +63,13 @@ public class DbTransferConfigServiceImpl implements DbTransferConfigService {
             throw new ServiceException("该数据库已存在扩容配置");
         }
 
-        dbTransferConfig.update("tenantCodeColumnName", "keyTableName", "tableCountThreshold", "dbInfoId");
+        dbTransferConfig.update("tenantCodeColumnName",
+            "keyTableName",
+            "tableCountThreshold",
+            "dbInfoId",
+            "binlogJournalName",
+            "binlogPosition",
+            "binlogTimestamp");
     }
 
     @Override

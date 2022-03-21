@@ -12,24 +12,39 @@
       fit
       highlight-current-row
     >
-      <el-table-column label="数据库实例" min-width="200" align="center">
+      <el-table-column label="数据库实例" min-width="100" align="center">
         <template slot-scope="scope">
           {{ scope.row.dbName+' '+scope.row.dbIp+':'+scope.row.dbPort }}
         </template>
       </el-table-column>
-      <el-table-column label="租户编码的数据库字段名称" min-width="100" align="center">
+      <el-table-column label="租户编码的数据库字段名称" min-width="50" align="center">
         <template slot-scope="scope">
           {{ scope.row.tenantCodeColumnName }}
         </template>
       </el-table-column>
-      <el-table-column label="用于触发扩容的关键表名" min-width="100" align="center">
+      <el-table-column label="用于触发扩容的关键表名" min-width="50" align="center">
         <template slot-scope="scope">
           {{ scope.row.keyTableName }}
         </template>
       </el-table-column>
-      <el-table-column label="表数据量阈值" min-width="100" align="center">
+      <el-table-column label="表数据量阈值" min-width="50" align="center">
         <template slot-scope="scope">
           {{ scope.row.tableCountThreshold }}
+        </template>
+      </el-table-column>
+      <el-table-column label="起始的binlog文件" min-width="50" align="center">
+        <template slot-scope="scope">
+          {{ scope.row.binlogJournalName }}
+        </template>
+      </el-table-column>
+      <el-table-column label="起始的binlog偏移量" min-width="50" align="center">
+        <template slot-scope="scope">
+          {{ scope.row.binlogPosition }}
+        </template>
+      </el-table-column>
+      <el-table-column label="起始的binlog的时间戳" min-width="50" align="center">
+        <template slot-scope="scope">
+          {{ scope.row.binlogTimestamp }}
         </template>
       </el-table-column>
       <el-table-column align="center" prop="created_at" label="操作" min-width="150">
@@ -69,6 +84,15 @@
         <el-form-item label="表数据量阈值" prop="tableCountThreshold">
           <el-input v-model="nodeModel.tableCountThreshold" type="number" />
         </el-form-item>
+        <el-form-item label="起始的binlog文件" prop="binlogJournalName">
+          <el-input v-model="nodeModel.binlogJournalName" placeholder="例如:mysql-bin.000001" />
+        </el-form-item>
+        <el-form-item label="起始的binlog偏移量" prop="binlogPosition">
+          <el-input v-model="nodeModel.binlogPosition" type="number" />
+        </el-form-item>
+        <el-form-item label="起始的binlog的时间戳" prop="binlogTimestamp">
+          <el-input v-model="nodeModel.binlogTimestamp" type="number" />
+        </el-form-item>
       </el-form>
       <div slot="footer" class="dialog-footer">
         <el-button @click="dialogFormVisible = false">取消</el-button>
@@ -78,7 +102,7 @@
 
     <el-dialog :visible.sync="ignoreTransferTableFormVisible" title="无视扩容的表" width="600px">
       <el-form label-position="left" label-width="120px" style="width: 400px; margin-left:30px;">
-        <el-form-item v-for="(item, index) in ignoreTransferTablesForm.ignoreTransferTables" label="表名" :key="item.index">
+        <el-form-item v-for="(item, index) in ignoreTransferTablesForm.ignoreTransferTables" :key="item.index" label="表名">
           <el-input v-model="item.tableName" style="width:60%" placeholder="请输入表名" />
           <i class="el-icon-plus" @click="addItem(index)" />
           <i v-show="index !== 0" class="el-icon-minus" @click="removeItem(index)" />
@@ -125,7 +149,10 @@ export default {
         tenantCodeColumnName: '',
         keyTableName: '',
         tableCountThreshold: 100000,
-        dbInfoId: undefined
+        dbInfoId: undefined,
+        binlogJournalName: undefined,
+        binlogPosition: undefined,
+        binlogTimestamp: undefined
       },
       rules: {
         tenantCodeColumnName: [{ required: true, message: '租户编码的数据库字段名称不能为空', trigger: 'change' }],
@@ -173,7 +200,10 @@ export default {
         tenantCodeColumnName: '',
         keyTableName: '',
         tableCountThreshold: 100000,
-        dbInfoId: undefined
+        dbInfoId: undefined,
+        binlogJournalName: undefined,
+        binlogPosition: undefined,
+        binlogTimestamp: undefined
       }
     },
     handleCreate() {

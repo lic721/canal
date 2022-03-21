@@ -1,14 +1,11 @@
 package com.alibaba.otter.canal.admin.service.impl;
 
 import java.sql.SQLException;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
-import com.alibaba.otter.canal.admin.service.CanalInstanceService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +17,7 @@ import com.alibaba.otter.canal.admin.common.JdbcUtil;
 import com.alibaba.otter.canal.admin.connector.MySqlConnectors;
 import com.alibaba.otter.canal.admin.dto.DbTransferPlanDTO;
 import com.alibaba.otter.canal.admin.model.*;
+import com.alibaba.otter.canal.admin.service.CanalInstanceService;
 
 /**
  * @author zhihua.li
@@ -30,6 +28,50 @@ public class ScheduledTask {
     private static final Logger logger             = LoggerFactory.getLogger(ScheduledTask.class);
 
     private static final Date   DEFAULT_START_TIME = new Date(0L);
+
+    private static final String CONTENT_TEMPLATE   = "#################################################\n"
+                                                     + "## mysql serverId , v1.0.26+ will autoGen\n"
+                                                     + "# canal.instance.mysql.slaveId=0\n" + "\n"
+                                                     + "# enable gtid use true/false\n"
+                                                     + "canal.instance.gtidon=false\n" + "\n" + "# position info\n"
+                                                     + "canal.instance.master.address={dbIp}:{dbPort}\n"
+                                                     + "canal.instance.master.journal.name={binlogJournalName}\n"
+                                                     + "canal.instance.master.position={binlogPosition}\n"
+                                                     + "canal.instance.master.timestamp={binlogTimestamp}\n"
+                                                     + "canal.instance.master.gtid=\n" + "\n" + "# rds oss binlog\n"
+                                                     + "canal.instance.rds.accesskey=\n"
+                                                     + "canal.instance.rds.secretkey=\n"
+                                                     + "canal.instance.rds.instanceId=\n" + "\n"
+                                                     + "# table meta tsdb info\n" + "canal.instance.tsdb.enable=true\n"
+                                                     + "#canal.instance.tsdb.url=jdbc:mysql://127.0.0.1:3306/canal_tsdb\n"
+                                                     + "#canal.instance.tsdb.dbUsername=canal\n"
+                                                     + "#canal.instance.tsdb.dbPassword=canal\n" + "\n"
+                                                     + "#canal.instance.standby.address =\n"
+                                                     + "#canal.instance.standby.journal.name =\n"
+                                                     + "#canal.instance.standby.position =\n"
+                                                     + "#canal.instance.standby.timestamp =\n"
+                                                     + "#canal.instance.standby.gtid=\n" + "\n"
+                                                     + "# username/password\n"
+                                                     + "canal.instance.dbUsername={dbUserName}\n"
+                                                     + "canal.instance.dbPassword={dbPassword}\n"
+                                                     + "canal.instance.connectionCharset = UTF-8\n"
+                                                     + "# enable druid Decrypt database password\n"
+                                                     + "canal.instance.enableDruid=false\n"
+                                                     + "#canal.instance.pwdPublicKey=MFwwDQYJKoZIhvcNAQEBBQADSwAwSAJBALK4BUxdDltRRE5/zXpVEVPUgunvscYFtEip3pmLlhrWpacX7y7GCMo2/JM6LeHmiiNdH1FWgGCpUfircSwlWKUCAwEAAQ==\n"
+                                                     + "\n" + "# table regex\n"
+                                                     + "canal.instance.filter.regex={dbName}\\\\..*\n"
+                                                     + "# table black regex\n" + "canal.instance.filter.black.regex=\n"
+                                                     + "# table field filter(format: schema1.tableName1:field1/field2,schema2.tableName2:field1/field2)\n"
+                                                     + "#canal.instance.filter.field=test1.t_product:id/subject/keywords,test2.t_company:id/name/contact/ch\n"
+                                                     + "# table field black filter(format: schema1.tableName1:field1/field2,schema2.tableName2:field1/field2)\n"
+                                                     + "#canal.instance.filter.black.field=test1.t_product:subject/product_image,test2.t_company:id/name/contact/ch\n"
+                                                     + "\n" + "# mq config\n" + "canal.mq.topic={mqTopic}\n"
+                                                     + "# dynamic topic route by schema or table regex\n"
+                                                     + "#canal.mq.dynamicTopic=mytest1.user,mytest2\\\\..*,.*\\\\..*\n"
+                                                     + "canal.mq.partition=0\n" + "# hash partition config\n"
+                                                     + "#canal.mq.partitionsNum=3\n"
+                                                     + "#canal.mq.partitionHash=test.table:id^name,.*\\\\..*\n"
+                                                     + "#################################################";
 
     @Autowired
     CanalInstanceService        canalInstanceConfigService;
@@ -126,11 +168,20 @@ public class ScheduledTask {
                     canalInstanceConfig
                         .setName(transferPlanDTO.getSourceDbInfoId() + "_" + transferPlanDTO.getTargetDbInfoId());
                     canalInstanceConfig.setClusterServerId("cluster:" + clusterId);
-                    // todo content
-                    canalInstanceConfig.setContent("");
-                    canalInstanceConfigService.save(canalInstanceConfig);
 
+                    String content = CONTENT_TEMPLATE.replace("{dbIp}", dbInfo.getDbIp())
+                        .replace("{dbPort}", dbInfo.getDbPort().toString())
+                        .replace("{binlogJournalName}", getBlankWhenNull(dbTransferConfig.getBinlogJournalName()))
+                        .replace("{binlogPosition}", getBlankWhenNull(dbTransferConfig.getBinlogPosition()))
+                        .replace("{binlogTimestamp}", getBlankWhenNull(dbTransferConfig.getBinlogTimestamp()))
+                        .replace("{dbUserName}", dbInfo.getDbUserName())
+                        .replace("{dbPassword}", dbInfo.getDbPassword())
+                        .replace("{dbName}", dbInfo.getDbName())
+                        .replace("{mqTopic}", transferPlanDTO.getMqTopic());
+                    canalInstanceConfig.setContent(content);
+                    canalInstanceConfigService.save(canalInstanceConfig);
                     // 重新启动mq消费
+
 
                     // 启动canalInstance
                     canalInstanceConfigService.remoteOperation(canalInstanceConfig.getId(), null, "start");
@@ -155,6 +206,13 @@ public class ScheduledTask {
             }
         }
 
+    }
+
+    private String getBlankWhenNull(Object obj) {
+        if (obj == null) {
+            return "";
+        }
+        return obj.toString();
     }
 
     private DbTransferHistory insertDbTransferHistory(DbTransferConfig dbTransferConfig) {
