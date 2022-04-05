@@ -55,6 +55,7 @@
             <el-dropdown-menu slot="dropdown">
               <el-dropdown-item @click.native="handleHistoryTable(scope.row)">触发扩容的表</el-dropdown-item>
               <el-dropdown-item @click.native="handleHistoryTenant(scope.row)">触发扩容的租户</el-dropdown-item>
+              <el-dropdown-item @click.native="handleHistoryTenant(scope.row)">标记为扩容完成</el-dropdown-item>
             </el-dropdown-menu>
           </el-dropdown>
         </template>
