@@ -1,6 +1,7 @@
 package com.monitor.client.service;
 
 import com.monitor.client.common.NetworkUtil;
+import com.monitor.client.zk.DistributedSystemClient;
 import com.monitor.client.zk.DistributedSystemServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,10 +21,16 @@ public class ScheduledTask implements InitializingBean {
     @Autowired
     DistributedSystemServer server;
 
-    @Scheduled(cron = "*/15 * * * * ?")
+    @Autowired
+    DistributedSystemClient client;
+
+    /**
+     * 每5s上传负载信息
+     */
+    @Scheduled(cron = "*/5 * * * * ?")
     public void execute() {
 
-        System.out.println("定时任务u");
+        // 获取zookeeper中的服务器节点
     }
 
     @Override

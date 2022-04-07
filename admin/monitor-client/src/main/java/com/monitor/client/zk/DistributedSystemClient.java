@@ -20,20 +20,17 @@ public class DistributedSystemClient {
     private ZooKeeper             zk      = null;
 
     // 获取zk连接
-    private void getZkClient() throws Exception {
+    public void getZkClient() throws Exception {
 
         // 服务器在需求中并不需要做任何监听
         zk = new ZooKeeper(zkhosts, GlobalConstants.sessionTimeout, new Watcher() {
 
             @Override
             public void process(WatchedEvent event) {
-
                 if (event.getType() == EventType.None) return;
-
                 try {
                     // 获取新的服务器列表,重新注册监听
                     updateServers();
-
                 } catch (Exception e) {
 
                     e.printStackTrace();
@@ -51,13 +48,9 @@ public class DistributedSystemClient {
 
         // 从servers父节点下获取到所有子节点，并注册监听
         List<String> children = zk.getChildren(GlobalConstants.parentZnodePath, true);
-
         ArrayList<String> serverList = new ArrayList<String>();
-
         for (String child : children) {
-
             byte[] data = zk.getData(GlobalConstants.parentZnodePath + "/" + child, false, null);
-
             serverList.add(new String(data));
 
         }
@@ -68,7 +61,6 @@ public class DistributedSystemClient {
 
         // 将更新之后的服务器列表信息打印在控制台观察一下
         for (String server : serverList) {
-
             System.out.println(server);
         }
         System.out.println("===================");
